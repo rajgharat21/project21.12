@@ -40,6 +40,13 @@ class AadhaarService {
   // Step 1: Generate OTP for Aadhaar number
   async generateOtp(aadhaarNumber: string): Promise<AadhaarAuthResponse> {
     try {
+      // Check if service is configured with real credentials
+      if (this.auaCode === 'YOUR_AUA_CODE' || 
+          this.subAuaCode === 'YOUR_SUB_AUA_CODE' || 
+          this.licenseKey === 'YOUR_LICENSE_KEY') {
+        throw new Error('AadhaarService not configured for real API calls. Using demo mode.');
+      }
+
       // Validate Aadhaar number format
       if (!this.validateAadhaarNumber(aadhaarNumber)) {
         return {
@@ -95,6 +102,13 @@ class AadhaarService {
   // Step 2: Verify OTP and authenticate
   async verifyOtp(aadhaarNumber: string, otp: string, txnId: string): Promise<AadhaarAuthResponse> {
     try {
+      // Check if service is configured with real credentials
+      if (this.auaCode === 'YOUR_AUA_CODE' || 
+          this.subAuaCode === 'YOUR_SUB_AUA_CODE' || 
+          this.licenseKey === 'YOUR_LICENSE_KEY') {
+        throw new Error('AadhaarService not configured for real API calls. Using demo mode.');
+      }
+
       const encryptedAadhaar = await this.encryptData(aadhaarNumber);
       const encryptedOtp = await this.encryptData(otp);
 
