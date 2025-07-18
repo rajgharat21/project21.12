@@ -44,7 +44,8 @@ class AadhaarService {
       if (this.auaCode === 'YOUR_AUA_CODE' || 
           this.subAuaCode === 'YOUR_SUB_AUA_CODE' || 
           this.licenseKey === 'YOUR_LICENSE_KEY') {
-        throw new Error('AadhaarService not configured for real API calls. Using demo mode.');
+        console.warn('AadhaarService not configured for real API calls. Using demo mode.');
+        throw new Error('DEMO_MODE');
       }
 
       // Validate Aadhaar number format
@@ -91,6 +92,12 @@ class AadhaarService {
 
     } catch (error) {
       console.error('Aadhaar OTP generation failed:', error);
+      
+      if (error.message === 'DEMO_MODE') {
+        // This will be caught by the calling function to use demo mode
+        throw error;
+      }
+      
       return {
         success: false,
         txnId: '',
@@ -106,7 +113,8 @@ class AadhaarService {
       if (this.auaCode === 'YOUR_AUA_CODE' || 
           this.subAuaCode === 'YOUR_SUB_AUA_CODE' || 
           this.licenseKey === 'YOUR_LICENSE_KEY') {
-        throw new Error('AadhaarService not configured for real API calls. Using demo mode.');
+        console.warn('AadhaarService not configured for real API calls. Using demo mode.');
+        throw new Error('DEMO_MODE');
       }
 
       const encryptedAadhaar = await this.encryptData(aadhaarNumber);
@@ -150,6 +158,12 @@ class AadhaarService {
 
     } catch (error) {
       console.error('Aadhaar OTP verification failed:', error);
+      
+      if (error.message === 'DEMO_MODE') {
+        // This will be caught by the calling function to use demo mode
+        throw error;
+      }
+      
       return {
         success: false,
         txnId: '',

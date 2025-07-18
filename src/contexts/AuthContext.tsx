@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       setIsLoading(false);
       
-      // Fallback to demo mode if API is not available
+      // Fallback to demo mode if API is not available or not configured
       console.warn('Aadhaar API not available, using demo mode');
       
       // Keep existing demo functionality as fallback
@@ -156,7 +156,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       setIsLoading(false);
       
-      // Fallback to demo mode
+      // Fallback to demo mode if API is not available or not configured
       console.warn('Aadhaar API not available, using demo mode');
       
       const userData = registeredUsers[aadhaarNumber as keyof typeof registeredUsers];
