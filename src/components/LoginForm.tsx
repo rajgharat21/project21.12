@@ -6,29 +6,47 @@ import LanguageSwitcher from './LanguageSwitcher';
 
 const LoginForm: React.FC = () => {
   const { t } = useLanguage();
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'aadhaar' | 'otp'>('aadhaar');
+  const [step, setStep] = useState<'phone' | 'aadhaar' | 'otp'>('phone');
   const [maskedPhone, setMaskedPhone] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const { sendOtp, verifyOtp, isLoading } = useAuth();
+  const [hasInternetAccess, setHasInternetAccess] = useState(false);
+  const { sendOtp, verifyOtp, getLinkedAadhaar, isLoading } = useAuth();
 
-  const handleAadhaarSubmit = async (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
     
-    if (aadhaarNumber.length === 12) {
-      const result = await sendOtp(aadhaarNumber);
+    if (phoneNumber.length === 10) {
+      const aadhaarResult = await getLinkedAadhaar(phoneNumber);
       
-      if (result.success) {
-        setMaskedPhone(result.maskedPhone || '');
-        setSuccess(result.message);
-        setStep('otp');
+      if (aadhaarResult.success) {
+        setAadhaarNumber(aadhaarResult.aadhaarNumber || '');
+        setSuccess(aadhaarResult.message);
+        setStep('aadhaar');
       } else {
-        setError(result.message);
+        setError(aadhaarResult.message);
       }
+    }
+  };
+
+  const handleAadhaarConfirm = async () => {
+    setError('');
+    setSuccess('');
+    
+    const result = await sendOtp(phoneNumber);
+    
+    if (result.success) {
+      setMaskedPhone(result.maskedPhone || '');
+      setHasInternetAccess(result.hasInternetAccess || false);
+      setSuccess(result.message);
+      setStep('otp');
+    } else {
+      setError(result.message);
     }
   };
 
@@ -37,31 +55,38 @@ const LoginForm: React.FC = () => {
     setError('');
     
     if (otp.length === 6) {
-      const result = await verifyOtp(aadhaarNumber, otp);
+      const result = await verifyOtp(phoneNumber, otp);
       
-      if (!result.success) {
+      if (result.success) {
+        setHasInternetAccess(result.hasInternetAccess || false);
+      } else {
         setError(result.message);
       }
       // If successful, the user will be logged in automatically via context
     }
   };
 
-  const formatAadhaar = (value: string) => {
-    const cleaned = value.replace(/\D/g, '');
-    const formatted = cleaned.replace(/(\d{4})(?=\d)/g, '$1 ');
-    return formatted.slice(0, 14); // Max 12 digits + 2 spaces
-  };
-
   const handleResendOtp = async () => {
     setError('');
     setSuccess('');
-    const result = await sendOtp(aadhaarNumber);
+    const result = await sendOtp(phoneNumber);
     
     if (result.success) {
       setSuccess('OTP resent successfully');
     } else {
       setError(result.message);
     }
+  };
+
+  const formatPhone = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    return cleaned.slice(0, 10);
+  };
+
+  const formatAadhaar = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    const formatted = cleaned.replace(/(\d{4})(?=\d)/g, '$1 ');
+    return formatted.slice(0, 14);
   };
 
   return (
@@ -100,45 +125,83 @@ const LoginForm: React.FC = () => {
             </div>
           )}
 
-          {step === 'aadhaar' ? (
-            <form onSubmit={handleAadhaarSubmit} className="space-y-6">
+          {step === 'phone' ? (
+            <form onSubmit={handlePhoneSubmit} className="space-y-6">
               <div>
-                <label htmlFor="aadhaar" className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('login.aadhaarLabel')}
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('login.phoneLabel')}
                 </label>
                 <div className="relative">
                   <input
-                    type="text"
-                    id="aadhaar"
-                    value={formatAadhaar(aadhaarNumber)}
-                    onChange={(e) => setAadhaarNumber(e.target.value.replace(/\s/g, ''))}
-                    placeholder={t('login.aadhaarPlaceholder')}
+                    type="tel"
+                    id="phone"
+                    value={formatPhone(phoneNumber)}
+                    onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ''))}
+                    placeholder={t('login.phonePlaceholder')}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    maxLength={14}
+                    maxLength={10}
                     required
                   />
-                  <Shield className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
+                  <Phone className="absolute right-3 top-3 w-5 h-5 text-gray-400" />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {t('login.aadhaarHelp')}
+                  {t('login.phoneHelp')}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Demo: Try 123456789012, 234567890123, 345678901234, 456789012345, or 444452518437
+                  Demo: Try 9876543210, 8765432109, 7654321098, 6543210987, or 9123456789
                 </p>
               </div>
 
               <button
                 type="submit"
-                disabled={aadhaarNumber.length !== 12}
+                disabled={phoneNumber.length !== 10}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? (
                   <Loader2 className="w-5 h-5 animate-spin mx-auto" />
                 ) : (
-                  t('login.sendOtp')
+                  t('login.findAadhaar')
                 )}
               </button>
             </form>
+          ) : step === 'aadhaar' ? (
+            <div className="space-y-6">
+              <div className="text-center mb-6">
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-gray-900">{t('login.aadhaarFound')}</h3>
+                <div className="text-gray-600 space-y-2">
+                  <p>{t('login.aadhaarConfirm')}</p>
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="font-mono text-lg">{formatAadhaar(aadhaarNumber)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleAadhaarConfirm}
+                  disabled={isLoading}
+                  className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                  ) : (
+                    t('login.sendOtp')
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setStep('phone');
+                    setAadhaarNumber('');
+                    setError('');
+                    setSuccess('');
+                  }}
+                  className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  {t('login.changePhone')}
+                </button>
+              </div>
+            </div>
           ) : (
             <form onSubmit={handleOtpSubmit} className="space-y-6">
               <div className="text-center mb-6">
@@ -150,6 +213,13 @@ const LoginForm: React.FC = () => {
                     <Phone className="w-4 h-4 mr-2" />
                     {maskedPhone}
                   </div>
+                  {hasInternetAccess && (
+                    <div className="mt-3 p-2 bg-green-50 rounded-lg">
+                      <p className="text-sm text-green-700 font-medium">
+                        🌐 Internet access will be enabled after login
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -189,14 +259,16 @@ const LoginForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setStep('aadhaar');
+                    setStep('phone');
                     setOtp('');
+                    setPhoneNumber('');
+                    setAadhaarNumber('');
                     setError('');
                     setSuccess('');
                   }}
                   className="text-blue-600 hover:text-blue-700 font-medium"
                 >
-                  {t('login.changeAadhaar')}
+                  {t('login.changePhone')}
                 </button>
                 <button
                   type="button"

@@ -10,6 +10,7 @@ import RationCardView from './components/RationCardView';
 import ApplicationStatus from './components/ApplicationStatus';
 import NotificationPanel from './components/NotificationPanel';
 import ProfileEditor from './components/ProfileEditor';
+import InternetAccessPanel from './components/InternetAccessPanel';
 import { useLanguage } from './contexts/LanguageContext';
 
 const AppContent: React.FC = () => {
@@ -60,6 +61,8 @@ const AppContent: React.FC = () => {
             onUpdateProfile={handleProfileUpdate}
           />
         );
+      case 'internet':
+        return <InternetAccessPanel />;
       case 'notifications':
         return (
           <div className="space-y-6">

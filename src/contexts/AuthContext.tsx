@@ -1,19 +1,23 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '../types';
 import { DataStorage } from '../utils/storage';
+import { checkInternetConnection, enableInternetAccess } from '../utils/internetAccess';
 
 interface OtpResponse {
   success: boolean;
   maskedPhone?: string;
   message: string;
+  hasInternetAccess?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
-  sendOtp: (aadhaarNumber: string) => Promise<OtpResponse>;
-  verifyOtp: (aadhaarNumber: string, otp: string) => Promise<{ success: boolean; message: string }>;
+  sendOtp: (phoneNumber: string) => Promise<OtpResponse>;
+  verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; message: string; hasInternetAccess?: boolean }>;
+  getLinkedAadhaar: (phoneNumber: string) => Promise<{ success: boolean; aadhaarNumber?: string; message: string }>;
   logout: () => void;
   isLoading: boolean;
+  hasInternetAccess: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,62 +37,96 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasInternetAccess, setHasInternetAccess] = useState(false);
 
   // Load user from storage on initialization
   React.useEffect(() => {
     const savedUser = DataStorage.loadUser();
     if (savedUser) {
       setUser(savedUser);
+      checkInternetConnection().then(setHasInternetAccess);
     }
   }, []);
 
-  // Mock database of registered Aadhaar numbers with phone numbers
-  const registeredUsers = {
-    '123456789012': { phone: '+91 9876543210', name: 'Rajesh Kumar', address: '123, Main Street, New Delhi, 110001' },
-    '234567890123': { phone: '+91 8765432109', name: 'Priya Sharma', address: '456, Park Avenue, Mumbai, 400001' },
-    '345678901234': { phone: '+91 7654321098', name: 'Amit Singh', address: '789, Gandhi Road, Bangalore, 560001' },
-    '456789012345': { phone: '+91 6543210987', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001' },
-    '444452518437': { phone: '+91 9123456789', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001' }
+  // Mock database of phone numbers linked to Aadhaar cards
+  const phoneToAadhaarMap = {
+    '+919876543210': { aadhaar: '123456789012', name: 'Rajesh Kumar', address: '123, Main Street, New Delhi, 110001', internetPlan: 'premium' },
+    '9876543210': { aadhaar: '123456789012', name: 'Rajesh Kumar', address: '123, Main Street, New Delhi, 110001', internetPlan: 'premium' },
+    '+918765432109': { aadhaar: '234567890123', name: 'Priya Sharma', address: '456, Park Avenue, Mumbai, 400001', internetPlan: 'basic' },
+    '8765432109': { aadhaar: '234567890123', name: 'Priya Sharma', address: '456, Park Avenue, Mumbai, 400001', internetPlan: 'basic' },
+    '+917654321098': { aadhaar: '345678901234', name: 'Amit Singh', address: '789, Gandhi Road, Bangalore, 560001', internetPlan: 'premium' },
+    '7654321098': { aadhaar: '345678901234', name: 'Amit Singh', address: '789, Gandhi Road, Bangalore, 560001', internetPlan: 'premium' },
+    '+916543210987': { aadhaar: '456789012345', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001', internetPlan: 'basic' },
+    '6543210987': { aadhaar: '456789012345', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001', internetPlan: 'basic' },
+    '+919123456789': { aadhaar: '444452518437', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001', internetPlan: 'premium' },
+    '9123456789': { aadhaar: '444452518437', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001', internetPlan: 'premium' }
   };
 
-  const sendOtp = async (aadhaarNumber: string): Promise<OtpResponse> => {
+  const getLinkedAadhaar = async (phoneNumber: string): Promise<{ success: boolean; aadhaarNumber?: string; message: string }> => {
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    const userData = phoneToAadhaarMap[normalizedPhone] || phoneToAadhaarMap[`+91${normalizedPhone}`];
+    
+    setIsLoading(false);
+    
+    if (!userData) {
+      return {
+        success: false,
+        message: 'Phone number not linked to any Aadhaar card. Please contact your service provider.'
+      };
+    }
+    
+    return {
+      success: true,
+      aadhaarNumber: userData.aadhaar,
+      message: `Aadhaar card found: ****-****-${userData.aadhaar.slice(-4)}`
+    };
+  };
+
+  const sendOtp = async (phoneNumber: string): Promise<OtpResponse> => {
     setIsLoading(true);
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const userData = registeredUsers[aadhaarNumber as keyof typeof registeredUsers];
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    const userData = phoneToAadhaarMap[normalizedPhone] || phoneToAadhaarMap[`+91${normalizedPhone}`];
     
     if (!userData) {
       setIsLoading(false);
       return {
         success: false,
-        message: 'Aadhaar number not found in our records. Please ensure you have a valid ration card.'
+        message: 'Phone number not linked to any Aadhaar card. Please ensure you have a valid ration card.'
       };
     }
 
-    // Mask phone number for security (show only last 4 digits)
-    const maskedPhone = userData.phone.replace(/(\+91\s)(\d{6})(\d{4})/, '$1******$3');
+    // Mask phone number for security
+    const maskedPhone = `+91 ******${normalizedPhone.slice(-4)}`;
+    const hasInternet = userData.internetPlan === 'premium';
     
     setIsLoading(false);
     return {
       success: true,
       maskedPhone,
-      message: `OTP sent successfully to ${maskedPhone}`
+      message: `OTP sent successfully to ${maskedPhone}`,
+      hasInternetAccess: hasInternet
     };
   };
 
-  const verifyOtp = async (aadhaarNumber: string, otp: string): Promise<{ success: boolean; message: string }> => {
+  const verifyOtp = async (phoneNumber: string, otp: string): Promise<{ success: boolean; message: string; hasInternetAccess?: boolean }> => {
     setIsLoading(true);
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const userData = registeredUsers[aadhaarNumber as keyof typeof registeredUsers];
+    const normalizedPhone = phoneNumber.replace(/\D/g, '');
+    const userData = phoneToAadhaarMap[normalizedPhone] || phoneToAadhaarMap[`+91${normalizedPhone}`];
     
     if (!userData) {
       setIsLoading(false);
       return {
         success: false,
-        message: 'Invalid Aadhaar number'
+        message: 'Invalid phone number'
       };
     }
 
@@ -98,17 +136,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
       return {
         success: false,
-        message: 'Please enter a valid 6-digit OTP'
+        message: 'Please enter a valid 6-digit OTP',
+        hasInternetAccess: false
       };
     }
     
+    const hasInternet = userData.internetPlan === 'premium';
+    
     const mockUser: User = {
       id: '1',
-      aadhaarNumber,
+      aadhaarNumber: userData.aadhaar,
       name: userData.name,
-      phone: userData.phone,
+      phone: `+91 ${normalizedPhone}`,
       address: userData.address
     };
+    
+    // Enable internet access if user has premium plan
+    if (hasInternet) {
+      await enableInternetAccess(userData.aadhaar);
+      setHasInternetAccess(true);
+    }
     
     setUser(mockUser);
     DataStorage.saveUser(mockUser);
@@ -116,17 +163,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     return {
       success: true,
-      message: 'Login successful'
+      message: 'Login successful',
+      hasInternetAccess: hasInternet
     };
   };
 
   const logout = () => {
     setUser(null);
+    setHasInternetAccess(false);
     DataStorage.clearAll();
   };
 
   return (
-    <AuthContext.Provider value={{ user, sendOtp, verifyOtp, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, sendOtp, verifyOtp, getLinkedAadhaar, logout, isLoading, hasInternetAccess }}>
       {children}
     </AuthContext.Provider>
   );

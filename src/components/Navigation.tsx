@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, CreditCard, FileText, Bell, Settings } from 'lucide-react';
+import { Home, CreditCard, FileText, Bell, Settings, Wifi } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface NavigationProps {
@@ -14,6 +14,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'dashboard', label: t('nav.dashboard'), icon: Home },
     { id: 'ration-card', label: t('nav.rationCard'), icon: CreditCard },
     { id: 'applications', label: t('nav.applications'), icon: FileText },
+    { id: 'internet', label: t('nav.internet'), icon: Wifi },
     { id: 'notifications', label: t('nav.notifications'), icon: Bell },
     { id: 'profile', label: t('nav.profile'), icon: Settings },
   ];
