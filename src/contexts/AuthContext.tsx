@@ -47,7 +47,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     '123456789012': { phone: '+91 9876543210', name: 'Rajesh Kumar', address: '123, Main Street, New Delhi, 110001' },
     '234567890123': { phone: '+91 8765432109', name: 'Priya Sharma', address: '456, Park Avenue, Mumbai, 400001' },
     '345678901234': { phone: '+91 7654321098', name: 'Amit Singh', address: '789, Gandhi Road, Bangalore, 560001' },
-    '456789012345': { phone: '+91 6543210987', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001' }
+    '456789012345': { phone: '+91 6543210987', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001' },
+    '444452518437': { phone: '+91 9123456789', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001' }
   };
 
   const sendOtp = async (aadhaarNumber: string): Promise<OtpResponse> => {

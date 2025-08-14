@@ -123,7 +123,7 @@ const LoginForm: React.FC = () => {
                   {t('login.aadhaarHelp')}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  {t('login.demoText')}
+                  Demo: Try 123456789012, 234567890123, 345678901234, 456789012345, or 444452518437
                 </p>
               </div>
 
