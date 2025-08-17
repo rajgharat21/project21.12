@@ -9,16 +9,16 @@ interface ProfileEditorProps {
 }
 
 const ProfileEditor: React.FC<ProfileEditorProps> = ({ familyMembers, onUpdateProfile }) => {
-  const { user } = useAuth();
+  const { activeUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editingMember, setEditingMember] = useState<string | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
 
   // Personal info state
   const [personalInfo, setPersonalInfo] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    address: user?.address || '',
+    name: activeUser?.name || '',
+    phone: activeUser?.phone || '',
+    address: activeUser?.address || '',
     email: ''
   });
 
@@ -198,7 +198,7 @@ const ProfileEditor: React.FC<ProfileEditorProps> = ({ familyMembers, onUpdatePr
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Number</label>
-            <p className="text-gray-900 py-2 font-mono">****-****-{user?.aadhaarNumber?.slice(-4)}</p>
+            <p className="text-gray-900 py-2 font-mono">****-****-{activeUser?.aadhaarNumber?.slice(-4)}</p>
             <p className="text-xs text-gray-500">Aadhaar number cannot be changed</p>
           </div>
         </div>

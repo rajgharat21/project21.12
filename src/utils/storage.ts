@@ -1,8 +1,11 @@
 // Storage utility for persisting data
+import { UserProfile } from '../types';
+
 export class DataStorage {
   private static readonly KEYS = {
-    USER: 'eration_user',
+    USER_PROFILE: 'eration_user_profile',
     RATION_CARD: 'eration_ration_card',
+    RATION_CARDS: 'eration_ration_cards',
     NOTIFICATIONS: 'eration_notifications',
     APPLICATIONS: 'eration_applications'
   };
@@ -35,12 +38,12 @@ export class DataStorage {
   }
 
   // Specific data methods
-  static saveUser(user: any): void {
-    this.save(this.KEYS.USER, user);
+  static saveUserProfile(profile: UserProfile): void {
+    this.save(this.KEYS.USER_PROFILE, profile);
   }
 
-  static loadUser(): any {
-    return this.load(this.KEYS.USER);
+  static loadUserProfile(): UserProfile | null {
+    return this.load(this.KEYS.USER_PROFILE);
   }
 
   static saveRationCard(rationCard: any): void {
@@ -49,6 +52,14 @@ export class DataStorage {
 
   static loadRationCard(): any {
     return this.load(this.KEYS.RATION_CARD);
+  }
+
+  static saveRationCards(rationCards: any[]): void {
+    this.save(this.KEYS.RATION_CARDS, rationCards);
+  }
+
+  static loadRationCards(): any[] {
+    return this.load(this.KEYS.RATION_CARDS) || [];
   }
 
   static saveNotifications(notifications: any[]): void {

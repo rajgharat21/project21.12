@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User } from '../types';
+import { User, UserProfile } from '../types';
 import { DataStorage } from '../utils/storage';
 import { checkInternetConnection, enableInternetAccess } from '../utils/internetAccess';
 
@@ -11,10 +11,14 @@ interface OtpResponse {
 }
 
 interface AuthContextType {
-  user: User | null;
+  userProfile: UserProfile | null;
+  activeUser: User | null;
   sendOtp: (phoneNumber: string) => Promise<OtpResponse>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; message: string; hasInternetAccess?: boolean }>;
   getLinkedAadhaar: (phoneNumber: string) => Promise<{ success: boolean; aadhaarNumber?: string; message: string }>;
+  addUser: (aadhaarNumber: string, otp: string) => Promise<{ success: boolean; message: string; user?: User }>;
+  switchUser: (userId: string) => void;
+  removeUser: (userId: string) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   isLoading: boolean;
   hasInternetAccess: boolean;
@@ -35,15 +39,18 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [activeUser, setActiveUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasInternetAccess, setHasInternetAccess] = useState(false);
 
   // Load user from storage on initialization
   React.useEffect(() => {
-    const savedUser = DataStorage.loadUser();
-    if (savedUser) {
-      setUser(savedUser);
+    const savedProfile = DataStorage.loadUserProfile();
+    if (savedProfile) {
+      setUserProfile(savedProfile);
+      const active = savedProfile.linkedUsers.find(u => u.id === savedProfile.activeUserId) || savedProfile.primaryUser;
+      setActiveUser(active);
       checkInternetConnection().then(setHasInternetAccess);
     }
   }, []);
@@ -59,7 +66,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     '+916543210987': { aadhaar: '456789012345', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001', internetPlan: 'basic' },
     '6543210987': { aadhaar: '456789012345', name: 'Sunita Devi', address: '321, Temple Street, Chennai, 600001', internetPlan: 'basic' },
     '+919123456789': { aadhaar: '444452518437', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001', internetPlan: 'premium' },
-    '9123456789': { aadhaar: '444452518437', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001', internetPlan: 'premium' }
+    '9123456789': { aadhaar: '444452518437', name: 'Vikram Patel', address: '567, MG Road, Pune, 411001', internetPlan: 'premium' },
+    // Additional users for testing multiple Aadhaar cards
+    '9988776655': { aadhaar: '555666777888', name: 'Meera Joshi', address: '890, Lake View, Hyderabad, 500001', internetPlan: 'premium' },
+    '8877665544': { aadhaar: '666777888999', name: 'Ravi Gupta', address: '234, Hill Station, Shimla, 171001', internetPlan: 'basic' },
+    '7766554433': { aadhaar: '777888999000', name: 'Kavita Reddy', address: '567, Beach Road, Goa, 403001', internetPlan: 'premium' }
   };
 
   const getLinkedAadhaar = async (phoneNumber: string): Promise<{ success: boolean; aadhaarNumber?: string; message: string }> => {
@@ -143,22 +154,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     
     const hasInternet = userData.internetPlan === 'premium';
     
-    const mockUser: User = {
-      id: '1',
+    const newUser: User = {
+      id: Date.now().toString(),
       aadhaarNumber: userData.aadhaar,
       name: userData.name,
       phone: `+91 ${normalizedPhone}`,
-      address: userData.address
+      address: userData.address,
+      isActive: true,
+      addedDate: new Date().toISOString()
     };
     
-    // Enable internet access if user has premium plan
-    if (hasInternet) {
-      await enableInternetAccess(userData.aadhaar);
-      setHasInternetAccess(true);
+    // Create or update user profile
+    let profile = userProfile;
+    if (!profile) {
+      profile = {
+        id: Date.now().toString(),
+        primaryUser: newUser,
+        linkedUsers: [],
+        activeUserId: newUser.id
+      };
+    } else {
+      // Check if user already exists
+      const existingUser = [profile.primaryUser, ...profile.linkedUsers].find(u => u.aadhaarNumber === userData.aadhaar);
+      if (existingUser) {
+        profile.activeUserId = existingUser.id;
+        setActiveUser(existingUser);
+        setUserProfile(profile);
+        DataStorage.saveUserProfile(profile);
+        setIsLoading(false);
+        return {
+          success: true,
+          message: 'Switched to existing user',
+          hasInternetAccess: hasInternet
+        };
+      }
+      
+      profile.linkedUsers.push(newUser);
+      profile.activeUserId = newUser.id;
     }
     
-    setUser(mockUser);
-    DataStorage.saveUser(mockUser);
+    setUserProfile(profile);
+    setActiveUser(newUser);
+    DataStorage.saveUserProfile(profile);
     setIsLoading(false);
     
     return {
@@ -168,14 +205,148 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   };
 
+  const addUser = async (aadhaarNumber: string, otp: string): Promise<{ success: boolean; message: string; user?: User }> => {
+    setIsLoading(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Find user data by Aadhaar
+    const userData = Object.values(phoneToAadhaarMap).find(u => u.aadhaar === aadhaarNumber);
+    
+    if (!userData) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'Aadhaar number not found in our records'
+      };
+    }
+
+    if (otp.length !== 6) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'Please enter a valid 6-digit OTP'
+      };
+    }
+
+    if (!userProfile) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'No active session found'
+      };
+    }
+
+    // Check if user already exists
+    const existingUser = [userProfile.primaryUser, ...userProfile.linkedUsers].find(u => u.aadhaarNumber === aadhaarNumber);
+    if (existingUser) {
+      setIsLoading(false);
+      return {
+        success: false,
+        message: 'This Aadhaar card is already linked to your account'
+      };
+    }
+
+    const newUser: User = {
+      id: Date.now().toString(),
+      aadhaarNumber: userData.aadhaar,
+      name: userData.name,
+      phone: Object.keys(phoneToAadhaarMap).find(phone => phoneToAadhaarMap[phone].aadhaar === aadhaarNumber) || '',
+      address: userData.address,
+      isActive: false,
+      addedDate: new Date().toISOString()
+    };
+
+    const updatedProfile = {
+      ...userProfile,
+      linkedUsers: [...userProfile.linkedUsers, newUser]
+    };
+
+    setUserProfile(updatedProfile);
+    DataStorage.saveUserProfile(updatedProfile);
+    setIsLoading(false);
+
+    return {
+      success: true,
+      message: 'User added successfully',
+      user: newUser
+    };
+  };
   const logout = () => {
     setUser(null);
     setHasInternetAccess(false);
     DataStorage.clearAll();
   };
 
+  const switchUser = (userId: string) => {
+    if (!userProfile) return;
+    
+    const user = [userProfile.primaryUser, ...userProfile.linkedUsers].find(u => u.id === userId);
+    if (user) {
+      const updatedProfile = {
+        ...userProfile,
+        activeUserId: userId
+      };
+  const removeUser = async (userId: string): Promise<{ success: boolean; message: string }> => {
+    if (!userProfile) {
+      return {
+        success: false,
+        message: 'No active session found'
+      };
+    }
+      
+    // Cannot remove primary user
+    if (userProfile.primaryUser.id === userId) {
+      return {
+        success: false,
+        message: 'Cannot remove primary user'
+      };
+    }
+      setUserProfile(updatedProfile);
+    const updatedLinkedUsers = userProfile.linkedUsers.filter(u => u.id !== userId);
+    let newActiveUserId = userProfile.activeUserId;
+    
+    // If removing active user, switch to primary user
+    if (userProfile.activeUserId === userId) {
+      newActiveUserId = userProfile.primaryUser.id;
+      setActiveUser(userProfile.primaryUser);
+    }
+      setActiveUser(user);
+    const updatedProfile = {
+      ...userProfile,
+      linkedUsers: updatedLinkedUsers,
+      activeUserId: newActiveUserId
+    };
+      DataStorage.saveUserProfile(updatedProfile);
+    setUserProfile(updatedProfile);
+    DataStorage.saveUserProfile(updatedProfile);
+      
+    return {
+      success: true,
+      message: 'User removed successfully'
+    };
+  };
+      // Update internet access based on new user
+      const userData = Object.values(phoneToAadhaarMap).find(u => u.aadhaar === user.aadhaarNumber);
+    setUserProfile(null);
+    setActiveUser(null);
+        setHasInternetAccess(userData.internetPlan === 'premium');
+      }
+    }
+  };
   return (
-    <AuthContext.Provider value={{ user, sendOtp, verifyOtp, getLinkedAadhaar, logout, isLoading, hasInternetAccess }}>
+    <AuthContext.Provider value={{ 
+      userProfile, 
+      activeUser, 
+      sendOtp, 
+      verifyOtp, 
+      getLinkedAadhaar, 
+      addUser, 
+      switchUser, 
+      removeUser, 
+      logout, 
+      isLoading, 
+      hasInternetAccess 
+    }}>
       {children}
     </AuthContext.Provider>
   );

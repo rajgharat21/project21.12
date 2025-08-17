@@ -4,8 +4,16 @@ export interface User {
   name: string;
   phone: string;
   address: string;
+  isActive?: boolean;
+  addedDate?: string;
 }
 
+export interface UserProfile {
+  id: string;
+  primaryUser: User;
+  linkedUsers: User[];
+  activeUserId: string;
+}
 export interface FamilyMember {
   id: string;
   name: string;
@@ -20,6 +28,8 @@ export interface RationCard {
   cardType: 'APL' | 'BPL' | 'AAY';
   issuedDate: string;
   validUntil: string;
+  aadhaarNumber: string;
+  userId: string;
   familyMembers: FamilyMember[];
   monthlyQuota: {
     rice: number;

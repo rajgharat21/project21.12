@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { RationCard, Notification, Application } from '../types';
-import { mockRationCard, mockNotifications } from '../data/mockData';
+import { mockRationCards, mockNotifications } from '../data/mockData';
 import { DataStorage } from '../utils/storage';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
-  rationCard: RationCard;
+  rationCards: RationCard[];
+  activeRationCard: RationCard | null;
   notifications: Notification[];
   applications: Application[];
   updateRationCard: (rationCard: RationCard) => void;
+  getRationCardByAadhaar: (aadhaarNumber: string) => RationCard | null;
   updateNotifications: (notifications: Notification[]) => void;
   addNotification: (notification: Notification) => void;
   markNotificationAsRead: (id: string) => void;
@@ -31,7 +34,9 @@ interface DataProviderProps {
 }
 
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
-  const [rationCard, setRationCard] = useState<RationCard>(mockRationCard);
+  const { activeUser } = useAuth();
+  const [rationCards, setRationCards] = useState<RationCard[]>(Object.values(mockRationCards));
+  const [activeRationCard, setActiveRationCard] = useState<RationCard | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
   const [applications, setApplications] = useState<Application[]>([
     {
@@ -68,12 +73,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   // Load data from storage on initialization
   useEffect(() => {
-    const savedRationCard = DataStorage.loadRationCard();
+    const savedRationCards = DataStorage.loadRationCards();
     const savedNotifications = DataStorage.loadNotifications();
     const savedApplications = DataStorage.loadApplications();
 
-    if (savedRationCard) {
-      setRationCard(savedRationCard);
+    if (savedRationCards.length > 0) {
+      setRationCards(savedRationCards);
     }
     if (savedNotifications.length > 0) {
       setNotifications(savedNotifications);
@@ -83,9 +88,31 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   }, []);
 
-  const updateRationCard = (newRationCard: RationCard) => {
-    setRationCard(newRationCard);
-    DataStorage.saveRationCard(newRationCard);
+  // Update active ration card when active user changes
+  useEffect(() => {
+    if (activeUser) {
+      const card = rationCards.find(card => card.aadhaarNumber === activeUser.aadhaarNumber);
+      setActiveRationCard(card || null);
+    } else {
+      setActiveRationCard(null);
+    }
+  }, [activeUser, rationCards]);
+
+  const updateRationCard = (updatedCard: RationCard) => {
+    const updatedCards = rationCards.map(card => 
+      card.id === updatedCard.id ? updatedCard : card
+    );
+    setRationCards(updatedCards);
+    DataStorage.saveRationCards(updatedCards);
+    
+    // Update active card if it's the one being updated
+    if (activeRationCard && activeRationCard.id === updatedCard.id) {
+      setActiveRationCard(updatedCard);
+    }
+  };
+
+  const getRationCardByAadhaar = (aadhaarNumber: string): RationCard | null => {
+    return rationCards.find(card => card.aadhaarNumber === aadhaarNumber) || null;
   };
 
   const updateNotifications = (newNotifications: Notification[]) => {
@@ -154,10 +181,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   return (
     <DataContext.Provider value={{
-      rationCard,
+      rationCards,
+      activeRationCard,
       notifications,
       applications,
       updateRationCard,
+      getRationCardByAadhaar,
       updateNotifications,
       addNotification,
       markNotificationAsRead,

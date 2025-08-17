@@ -14,10 +14,10 @@ import InternetAccessPanel from './components/InternetAccessPanel';
 import { useLanguage } from './contexts/LanguageContext';
 
 const AppContent: React.FC = () => {
-  const { user } = useAuth();
+  const { activeUser } = useAuth();
   const { t } = useLanguage();
   const {
-    rationCard,
+    activeRationCard,
     notifications,
     applications,
     updateRationCard,
@@ -29,19 +29,29 @@ const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showNotifications, setShowNotifications] = useState(false);
 
-  if (!user) {
+  if (!activeUser) {
     return <LoginForm />;
   }
 
+  if (!activeRationCard) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Ration Card Found</h2>
+          <p className="text-gray-600">No ration card is associated with the current user.</p>
+        </div>
+      </div>
+    );
+  }
   const unreadNotifications = notifications.filter(n => !n.read);
 
   const handleProfileUpdate = (updateData: any) => {
     if (updateData.type === 'family') {
-      const updatedRationCard = {
-        ...rationCard,
+      const updatedCard = {
+        ...activeRationCard,
         familyMembers: updateData.data
       };
-      updateRationCard(updatedRationCard);
+      updateRationCard(updatedCard);
     }
     console.log('Profile updated:', updateData);
   };
@@ -49,15 +59,15 @@ const AppContent: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard rationCard={rationCard} />;
+        return <Dashboard rationCard={activeRationCard} />;
       case 'ration-card':
-        return <RationCardView rationCard={rationCard} />;
+        return <RationCardView rationCard={activeRationCard} />;
       case 'applications':
         return <ApplicationStatus applications={applications} onUpdateApplication={updateApplication} onAddApplication={addApplication} />;
       case 'profile':
         return (
           <ProfileEditor
-            familyMembers={rationCard.familyMembers}
+            familyMembers={activeRationCard.familyMembers}
             onUpdateProfile={handleProfileUpdate}
           />
         );
@@ -101,7 +111,7 @@ const AppContent: React.FC = () => {
           </div>
         );
       default:
-        return <Dashboard rationCard={rationCard} />;
+        return <Dashboard rationCard={activeRationCard} />;
     }
   };
 

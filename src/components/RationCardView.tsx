@@ -9,7 +9,7 @@ interface RationCardViewProps {
 }
 
 const RationCardView: React.FC<RationCardViewProps> = ({ rationCard }) => {
-  const { user } = useAuth();
+  const { activeUser } = useAuth();
   const { t } = useLanguage();
 
   const getCardTypeColor = (type: string) => {
@@ -66,7 +66,7 @@ const RationCardView: React.FC<RationCardViewProps> = ({ rationCard }) => {
               </div>
               <div className="mb-4">
                 <p className="text-blue-200 text-sm">{t('rationCard.headOfFamily')}</p>
-                <p className="text-lg font-semibold">{user?.name}</p>
+                <p className="text-lg font-semibold">{activeUser?.name}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -111,14 +111,14 @@ const RationCardView: React.FC<RationCardViewProps> = ({ rationCard }) => {
               <MapPin className="w-5 h-5 text-gray-400 mr-3" />
               <div>
                 <p className="text-sm text-gray-600">{t('rationCard.address')}</p>
-                <p className="font-medium">{user?.address}</p>
+                <p className="font-medium">{activeUser?.address}</p>
               </div>
             </div>
             <div className="flex items-center">
               <Phone className="w-5 h-5 text-gray-400 mr-3" />
               <div>
                 <p className="text-sm text-gray-600">{t('rationCard.phone')}</p>
-                <p className="font-medium">{user?.phone}</p>
+                <p className="font-medium">{activeUser?.phone}</p>
               </div>
             </div>
             <div className="flex items-center">
